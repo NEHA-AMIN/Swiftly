@@ -6,6 +6,31 @@ import Observation
 @MainActor
 final class ItineraryGenerator {
     
+    enum Mode: String, CaseIterable, Identifiable {
+        case kid
+        case adventure
+
+        var id: String { rawValue }
+
+        var guidance: String {
+            switch self {
+            case .kid:
+                return "This trip should be kid-friendly: prioritize family-friendly activities, avoid age-restricted venues, include playgrounds, museums with kids programs, and ensure restaurants and hotels are suitable for children."
+            case .adventure:
+                return "This trip should be adventure-focused: prioritize outdoor and high-activity experiences (e.g., hiking, water sports, challenging trails), include adrenaline or exploration options where appropriate; avoid child-focused activities."
+            }
+        }
+
+        var displayName: String {
+            switch self {
+            case .kid: return "Kid Mode"
+            case .adventure: return "Adventure Mode"
+            }
+        }
+    }
+
+    var mode: Mode
+    
     var error: Error?
     let landmark: Landmark
     
@@ -13,8 +38,9 @@ final class ItineraryGenerator {
     
     private(set) var itinerary: Itinerary.PartiallyGenerated?
     
-    init(landmark: Landmark) {
+    init(landmark: Landmark, mode: Mode = .adventure) {
         self.landmark = landmark
+        self.mode = mode
         
         let pointOfInterestTool = FindPointsOfInterestTool(landmark: landmark)
         let instructions = Instructions {
@@ -36,8 +62,10 @@ final class ItineraryGenerator {
 
     func generateItinerary(dayCount: Int = 3) async {
         do {
+            let modeGuidance = self.mode.guidance
             let prompt = Prompt {
                 "Generate a \(dayCount)-day itinerary to \(landmark.name)."
+                modeGuidance
                 "Here is an example of the desired format, but don't copy its content:"
                 Itinerary.exampleTripToJapan
             }
@@ -54,6 +82,10 @@ final class ItineraryGenerator {
     }
 
     func prewarmModel() {
-        session.prewarm(promptPrefix:Prompt { "Generate a 3 day itinirary to \( landmark.name)." })
+        let modeGuidance = self.mode.guidance
+        session.prewarm(promptPrefix: Prompt {
+            "Generate a 3 day itinerary to \(landmark.name)."
+            modeGuidance
+        })
     }
 }
