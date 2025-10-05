@@ -1,10 +1,4 @@
-/*
-See the LICENSE.txt file for this sample’s licensing information.
-
-Abstract:
-A class that generates an itinerary.
-*/
-
+import Foundation
 import FoundationModels
 import Observation
 
@@ -16,44 +10,50 @@ final class ItineraryGenerator {
     let landmark: Landmark
     
     private var session: LanguageModelSession
-
-    // MARK: - [CODE-ALONG] Chapter 2.3.1: Update to Generable
-    // MARK: - [CODE-ALONG] Chapter 4.1.1: Change the property to hold a partially generated Itinerary
-    private(set) var itineraryContent: String?
-
+    
+    private(set) var itinerary: Itinerary.PartiallyGenerated?
+    
     init(landmark: Landmark) {
         self.landmark = landmark
-        // MARK: - [CODE-ALONG] Chapter 2.3.3: Update instructions to remove structural guidance
-        // MARK: - [CODE-ALONG] Chapter 5.3.1: Update the instructions to use the Tool
-        // MARK: - [CODE-ALONG] Chapter 5.3.2: Update the LanguageModelSession with the tool
-        let instructions = """
-                Your job is to create an itinerary for the user.
-                Each day needs an activity, hotel and restaurant.
+        
+        let pointOfInterestTool = FindPointsOfInterestTool(landmark: landmark)
+        let instructions = Instructions {
+            "Your job is to create an itinerary for the user."
+            "Each day needs an activity, hotel and restaurant."
+            """
+            Always use the findPointsOfInterest tool to find businesses
+            and activities in \(landmark.name), especially hotels and restaurants.
+            
+            The point of interest categories may include hotel and restaurant.
+            """
+            landmark.description
+        }
+        
+        self.session = LanguageModelSession(tools: [pointOfInterestTool],
+                                            instructions: instructions)
 
-                Always include a title, a short description, and a day-by-day plan.
-                """
-        self.session = LanguageModelSession(instructions: instructions)
     }
 
     func generateItinerary(dayCount: Int = 3) async {
-        // MARK: - [CODE-ALONG] Chapter 1.5.3: Add itinerary generator using Foundation Models
-        // MARK: - [CODE-ALONG] Chapter 2.3.2: Update to use Generables
-        // MARK: - [CODE-ALONG] Chapter 3.3: Update to use one-shot prompting
-        // MARK: - [CODE-ALONG] Chapter 4.1.2: Update to use streaming API
-        // MARK: - [CODE-ALONG] Chapter 5.3.3: Update `session.streamResponse` to include greedy sampling
-        // MARK: - [CODE-ALONG] Chapter 6.2.1: Update to exclude schema from prompt
-        // MARK: - [CODE-ALONG] Chapter 1.5.3: Add itinerary generator using Foundation Models
         do {
-            let prompt = "Generate a \(dayCount)-day itinerary to \(landmark.name)."
-            let response = try await session.respond(to: prompt)
-            self.itineraryContent = response.content
+            let prompt = Prompt {
+                "Generate a \(dayCount)-day itinerary to \(landmark.name)."
+                "Here is an example of the desired format, but don't copy its content:"
+                Itinerary.exampleTripToJapan
+            }
+            let stream = session.streamResponse(to: prompt,
+                                                generating: Itinerary.self,
+                                                includeSchemaInPrompt: false)
+            for try await partialResponse in stream {
+                self.itinerary = partialResponse.content
+            }
+
         } catch {
             self.error = error
         }
-
     }
 
     func prewarmModel() {
-        // MARK: - [CODE-ALONG] Chapter 6.1.1: Add a function to pre-warm the model
+        session.prewarm(promptPrefix:Prompt { "Generate a 3 day itinirary to \( landmark.name)." })
     }
 }

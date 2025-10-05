@@ -1,15 +1,8 @@
-/*
-See the LICENSE.txt file for this sample’s licensing information.
-
-Abstract:
-A SwiftUI view for displaying the itinerary.
-*/
-
 import SwiftUI
 
 struct LandmarkTripView: View {
     let landmark: Landmark
-
+    
     @State private var itineraryGenerator: ItineraryGenerator?
 
     @State private var requestedItinerary: Bool = false
@@ -28,25 +21,24 @@ struct LandmarkTripView: View {
                 .padding(.horizontal)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // MARK: - [CODE-ALONG] Chapter 2.4: Update the Text view with `ItineraryView`
-            else if let content = itineraryGenerator?.itineraryContent {
-                Text(LocalizedStringKey(content))
-                    .padding()
+            else if let itinerary = itineraryGenerator?.itinerary {
+                ItineraryView(landmark: landmark, itinerary: itinerary).padding()
             }
 
         }
         .scrollDisabled(!requestedItinerary)
         .safeAreaInset(edge: .bottom) {
-                ItineraryButton {
-                    requestedItinerary = true
-                    await itineraryGenerator?.generateItinerary()
-                }
+            ItineraryButton {
+                requestedItinerary = true
+                await itineraryGenerator?.generateItinerary()
+            }
+
         }
         .task {
-            // MARK: - [CODE-ALONG] Chapter 6.1.2: Pre-warm the model when the view appears
             let generator = ItineraryGenerator(landmark: landmark)
             self.itineraryGenerator = generator
-
+            generator.prewarmModel()
+            
         }
         .headerStyle(landmark: landmark)
     }
